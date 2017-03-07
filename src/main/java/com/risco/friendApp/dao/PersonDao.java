@@ -24,15 +24,15 @@ public class PersonDao extends JdbcDaoSupport {
     }
     
     public ArrayList<Person> getPersons() {
-		String sql = "SELECT * FROM person";
-		ArrayList<Person> personList = (ArrayList<Person>) getJdbcTemplate().query(sql, new PersonRowMapper());
+		String sql = "SELECT * FROM person LEFT JOIN phone ON person.login = phone.userLogin";
+		ArrayList<Person> personList = (ArrayList<Person>) getJdbcTemplate().query(sql, new PersonListExtractor());
 		return personList;
 	}
 
     public Person getPersonByLogin(String login) {
-		String sql = "SELECT * FROM person WHERE login = ?";
+		String sql = "SELECT * FROM person LEFT JOIN phone ON person.login = phone.userLogin WHERE login = ?";
 		try {
-			Person person = (Person) getJdbcTemplate().queryForObject(sql, new Object[] {login}, new PersonRowMapper());
+			Person person = (Person) getJdbcTemplate().query(sql, new Object[] {login}, new PersonExtractor());
 			return person;			
 		} catch (EmptyResultDataAccessException e) {
 			return null;
@@ -46,14 +46,22 @@ public class PersonDao extends JdbcDaoSupport {
 	}
     
     public void persistPerson(Person person) {
-		String sql = "INSERT INTO person (login, name, password, age, salary, birthDate) VALUES (?, ?, ?, ?, ?, ?)";
-		getJdbcTemplate().update(sql, new Object[] {person.getLogin(), person.getName(), 
+		String sql1 = "INSERT INTO person (login, name, password, age, salary, birthDate) VALUES (?, ?, ?, ?, ?, ?)";
+		getJdbcTemplate().update(sql1, new Object[] {person.getLogin(), person.getName(), 
 				person.getPassword(), person.getAge(), person.getSalary(), person.getBirthDate()});	
+		if (person.getPhoneNumbers()!=null) {
+			String sql2 = "INSERT INTO phone (phoneNumber, userLogin) VALUES (?, ?)";
+			for (String phoneNumber : person.getPhoneNumbers()) {
+				getJdbcTemplate().update(sql2, new Object[] {phoneNumber, person.getLogin()});
+			}
+		}		
     }
     
     public void deletePerson(String login) {
-    	String sql = "DELETE FROM person WHERE login = ?";
-    	getJdbcTemplate().update(sql, new Object[] {login});
+    	String sql1 = "DELETE FROM person WHERE login = ?";
+    	getJdbcTemplate().update(sql1, new Object[] {login});
+    	String sql2 = "DELETE FROM phone WHERE userLogin = ?";
+    	getJdbcTemplate().update(sql2, new Object[] {login});
     }
 
 }
